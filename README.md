@@ -75,9 +75,37 @@ maestro test flows/auth/login.yaml
 # Override env variables inline
 maestro test -e contact_number=9876543210 -e otp=0000 test-suites/smoke.yaml
 
-# Via automation script
-./scripts/run_maestro_firebase.sh --local
+# Via automation script (skip build if not building Flutter app)
+./scripts/run_maestro_firebase.sh --local --skip-build
 ```
+
+### Automation Script (`run_maestro_firebase.sh`)
+
+```bash
+# Local run (skip APK build)
+./scripts/run_maestro_firebase.sh --local --skip-build
+
+# Local run with custom suite
+./scripts/run_maestro_firebase.sh --local --skip-build --suite test-suites/regression.yaml
+
+# Firebase Test Lab (with pre-built APK)
+./scripts/run_maestro_firebase.sh --firebase --skip-build --apk /path/to/app.apk --project your-firebase-project-id
+
+# Full run: build APK + run on Firebase
+./scripts/run_maestro_firebase.sh --firebase --project your-firebase-project-id
+```
+
+#### Script Options
+
+| Flag | Description |
+|------|-------------|
+| `--local` | Run on connected device/emulator |
+| `--firebase` | Run on Firebase Test Lab |
+| `--skip-build` | Skip Flutter APK build step |
+| `--suite <path>` | Test suite to run (default: `smoke.yaml`) |
+| `--apk <path>` | Path to pre-built APK |
+| `--project <id>` | Firebase project ID |
+| `-h, --help` | Show help |
 
 ### Firebase Test Lab
 
