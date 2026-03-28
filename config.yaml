@@ -1,0 +1,14 @@
+# Maestro Workspace Configuration
+appId: com.univest.capp.uat
+name: Univest E2E Tests
+
+# Environment variables available to all flows
+env:
+  contact_number: "9876543210"
+  otp: "0000"
+
+# Screenshot settings
+onFlowComplete:
+  takeScreenshot: true
+onFlowStart:
+  clearState: false

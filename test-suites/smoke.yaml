@@ -1,0 +1,8 @@
+appId: com.univest.capp.uat
+tags:
+  - smoke
+name: "Smoke Test Suite"
+---
+# Smoke suite: login + dashboard validation
+- runFlow: ../flows/auth/login.yaml
+- runFlow: ../flows/dashboard/home.yaml

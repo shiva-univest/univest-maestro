@@ -1,0 +1,26 @@
+appId: com.univest.capp.uat
+tags:
+  - dashboard
+  - home
+---
+# Validate key UI elements on the home/dashboard screen
+- waitForAnimationToEnd
+
+# Portfolio section
+- assertVisible:
+    text: "Portfolio"
+- takeScreenshot: dashboard_portfolio
+
+# Search functionality
+- assertVisible:
+    id: "search_icon"
+
+# Profile icon
+- assertVisible:
+    id: "profile_icon"
+
+# Bottom navigation
+- assertVisible:
+    text: "Home"
+
+- takeScreenshot: dashboard_home_validated

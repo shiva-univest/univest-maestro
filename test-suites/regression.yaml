@@ -1,0 +1,30 @@
+appId: com.univest.capp.uat
+tags:
+  - regression
+name: "Regression Test Suite"
+---
+# ============================================
+# Regression Suite
+# Add new flows as they are created
+# ============================================
+
+# --- Auth Flows ---
+- runFlow: ../flows/auth/login.yaml
+
+# --- Dashboard Flows ---
+- runFlow: ../flows/dashboard/home.yaml
+
+# --- Portfolio Flows ---
+# - runFlow: ../flows/portfolio/overview.yaml
+# - runFlow: ../flows/portfolio/holdings.yaml
+
+# --- Search Flows ---
+# - runFlow: ../flows/search/stock_search.yaml
+
+# --- Profile/Settings Flows ---
+# - runFlow: ../flows/settings/profile.yaml
+# - runFlow: ../flows/settings/notifications.yaml
+
+# --- Transaction Flows ---
+# - runFlow: ../flows/transactions/buy.yaml
+# - runFlow: ../flows/transactions/sell.yaml

@@ -1,0 +1,21 @@
+# Environment (contains credentials)
+.env
+
+# Artifacts & test output
+artifacts/
+screenshots/
+
+# Build output
+build/
+*.apk
+*.ipa
+*.aab
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml

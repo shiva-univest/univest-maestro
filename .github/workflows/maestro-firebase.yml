@@ -1,0 +1,93 @@
+name: Maestro E2E Tests (Firebase Test Lab)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: "Test suite to run"
+        required: false
+        default: "smoke"
+        type: choice
+        options:
+          - smoke
+          - regression
+
+env:
+  FLUTTER_VERSION: "3.24.0"
+  JAVA_VERSION: "17"
+
+jobs:
+  maestro-test:
+    name: Run Maestro E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout test repo
+        uses: actions/checkout@v4
+
+      - name: Checkout Flutter app repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.FLUTTER_REPO }}
+          token: ${{ secrets.FLUTTER_REPO_TOKEN }}
+          path: flutter-app
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: Build APK
+        working-directory: flutter-app
+        run: |
+          flutter pub get
+          flutter build apk --debug --flavor uat -t lib/main_uat.dart
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+      - name: Run Firebase Test Lab
+        run: |
+          SUITE=${{ github.event.inputs.test_suite || 'smoke' }}
+          APK_PATH="flutter-app/build/app/outputs/flutter-apk/app-uat-debug.apk"
+
+          gcloud firebase test android run \
+            --project="${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --type=game-loop \
+            --app="$APK_PATH" \
+            --device="model=Pixel2,version=30,locale=en,orientation=portrait" \
+            --timeout=15m \
+            --results-dir="maestro-${{ github.run_id }}"
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-results-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 14

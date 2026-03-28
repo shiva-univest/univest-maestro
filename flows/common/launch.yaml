@@ -1,0 +1,10 @@
+appId: com.univest.capp.uat
+tags:
+  - common
+  - launch
+---
+# Launch the app and wait for it to be ready
+- launchApp:
+    appId: com.univest.capp.uat
+    clearState: false
+- waitForAnimationToEnd
