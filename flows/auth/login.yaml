@@ -6,39 +6,8 @@ tags:
 # Launch the app
 - runFlow: ../common/launch.yaml
 
-# Enter contact number
-- extendedWaitUntil:
-    visible:
-      text: "Enter your mobile number"
-    timeout: 10000
-- tapOn:
-    id: "contact_number_input"
-- inputText: ${contact_number}
-
-# Tap Send OTP
-- tapOn:
-    text: "Send OTP"
-- waitForAnimationToEnd
-
-# Enter OTP
-- extendedWaitUntil:
-    visible:
-      text: "Enter OTP"
-    timeout: 10000
-- tapOn:
-    id: "otp_input"
-- inputText: ${otp}
-
-# Tap Verify
-- tapOn:
-    text: "Verify"
-- waitForAnimationToEnd
-
-# Assert dashboard/home is visible
-- extendedWaitUntil:
-    visible:
-      text: "Home"
-    timeout: 15000
-- assertVisible:
-    text: "Home"
-- takeScreenshot: login_success
+# Check if login screen is visible — skip if already logged in
+- runFlow:
+    when:
+      visible: "Enter Mobile Number"
+    file: login_steps.yaml

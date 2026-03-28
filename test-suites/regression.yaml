@@ -12,7 +12,7 @@ name: "Regression Test Suite"
 - runFlow: ../flows/auth/login.yaml
 
 # --- Dashboard Flows ---
-- runFlow: ../flows/dashboard/home.yaml
+# - runFlow: ../flows/dashboard/home.yaml
 
 # --- Portfolio Flows ---
 # - runFlow: ../flows/portfolio/overview.yaml

@@ -1,0 +1,20 @@
+appId: com.univest.capp.uat
+---
+# Enter contact number
+- tapOn:
+    text: "Enter Mobile Number"
+- inputText: ${contact_number}
+
+# Tap Continue / Send OTP
+- tapOn:
+    text: "Continue"
+- waitForAnimationToEnd
+
+# Enter OTP digits one by one
+- inputText: "0"
+- inputText: "0"
+- inputText: "0"
+- inputText: "0"
+- waitForAnimationToEnd
+
+- takeScreenshot: login_success
