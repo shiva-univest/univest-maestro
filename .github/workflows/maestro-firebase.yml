@@ -75,16 +75,7 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
-          working-directory: ${{ github.workspace }}
-          script: |
-            SUITE="${{ github.event.inputs.test_suite || 'smoke' }}"
-            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
-            pwd && ls -la univest-build/
-            APK_FILE=$(find ${{ github.workspace }}/univest-build -name "*.apk" -type f | head -1)
-            echo "Installing APK: $APK_FILE"
-            adb install "$APK_FILE"
-            echo "Running Maestro suite: $SUITE"
-            maestro test --debug-output ${{ github.workspace }}/artifacts/maestro-debug "${{ github.workspace }}/test-suites/${SUITE}.yaml"
+          script: adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;' && adb install ${{ github.workspace }}/univest-build/univest-Uat-1.1.268.apk && $HOME/.maestro/bin/maestro test --debug-output ${{ github.workspace }}/artifacts/maestro-debug "${{ github.workspace }}/test-suites/${{ github.event.inputs.test_suite || 'smoke' }}.yaml"
 
       - name: Upload test artifacts
         if: always()
