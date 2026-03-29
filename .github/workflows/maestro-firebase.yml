@@ -1,4 +1,4 @@
-name: Maestro E2E Tests (Firebase Test Lab)
+name: Maestro E2E Tests
 
 on:
   push:
@@ -17,25 +17,18 @@ on:
           - regression
 
 env:
-  FLUTTER_VERSION: "3.24.0"
   JAVA_VERSION: "17"
+  API_LEVEL: 30
 
 jobs:
   maestro-test:
     name: Run Maestro E2E Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout test repo
         uses: actions/checkout@v4
-
-      - name: Checkout Flutter app repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ vars.FLUTTER_REPO }}
-          token: ${{ secrets.FLUTTER_REPO_TOKEN }}
-          path: flutter-app
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -43,46 +36,55 @@ jobs:
           distribution: "temurin"
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: "stable"
-          cache: true
-
-      - name: Build APK
-        working-directory: flutter-app
-        run: |
-          flutter pub get
-          flutter build apk --debug --flavor uat -t lib/main_uat.dart
-
       - name: Install Maestro
         run: |
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> $GITHUB_PATH
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-
-      - name: Setup gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
-
-      - name: Run Firebase Test Lab
+      - name: Enable KVM
         run: |
-          SUITE=${{ github.event.inputs.test_suite || 'smoke' }}
-          APK_PATH="flutter-app/build/app/outputs/flutter-apk/app-uat-debug.apk"
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
-          gcloud firebase test android run \
-            --project="${{ secrets.FIREBASE_PROJECT_ID }}" \
-            --type=game-loop \
-            --app="$APK_PATH" \
-            --device="model=Pixel2,version=30,locale=en,orientation=portrait" \
-            --timeout=15m \
-            --results-dir="maestro-${{ github.run_id }}"
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ env.API_LEVEL }}
+
+      - name: Create AVD snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: echo "AVD snapshot generated"
+
+      - name: Run Maestro tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            SUITE=${{ github.event.inputs.test_suite || 'smoke' }}
+
+            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
+
+            adb install univest-build/univest-Uat-1.1.268.apk
+
+            maestro test \
+              --debug-output artifacts/maestro-debug \
+              test-suites/${SUITE}.yaml
 
       - name: Upload test artifacts
         if: always()

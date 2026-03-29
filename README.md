@@ -7,9 +7,7 @@ Production-grade Maestro end-to-end testing framework for the Univest Flutter ap
 | Tool | Version | Install |
 |------|---------|---------|
 | Maestro | Latest | `curl -Ls "https://get.maestro.mobile.dev" \| bash` |
-| Flutter | 3.24+ | [flutter.dev](https://flutter.dev/docs/get-started/install) |
 | Android SDK | 30+ | Via Android Studio |
-| gcloud CLI | Latest | [cloud.google.com/sdk](https://cloud.google.com/sdk/docs/install) |
 | Java | 17 | `brew install openjdk@17` |
 
 ## Quick Start
@@ -37,6 +35,9 @@ univest-maestro/
 ├── .env.example                    # Environment template
 ├── CLAUDE.md                       # AI assistant context
 │
+├── univest-build/                  # Pre-built APK directory
+│   └── univest-Uat-x.x.x.apk     # UAT APK for testing
+│
 ├── flows/
 │   ├── common/
 │   │   └── launch.yaml             # App launch (reusable)
@@ -50,10 +51,10 @@ univest-maestro/
 │   └── regression.yaml             # Full regression (expandable)
 │
 ├── scripts/
-│   └── run_maestro_firebase.sh     # Build + test runner
+│   └── run_maestro_firebase.sh     # Local test runner
 │
 ├── .github/workflows/
-│   └── maestro-firebase.yml        # CI pipeline
+│   └── maestro-firebase.yml        # CI: emulator + Maestro
 │
 └── artifacts/                      # Screenshots & logs (gitignored)
 ```
@@ -81,20 +82,15 @@ maestro test -e contact_number=9876543210 -e otp=0000 test-suites/smoke.yaml
 
 ### Automation Script (`run_maestro_firebase.sh`)
 
-The script auto-loads `.env` so you don't need to pass flags for project, APK, or device config.
+The script auto-loads `.env` so you don't need to pass many flags.
 
 ```bash
-# Local run
+# Local run (uses APK from .env)
 ./scripts/run_maestro_firebase.sh --local --skip-build
 
-# Firebase Test Lab (uses .env for project, APK path, device config)
-./scripts/run_maestro_firebase.sh --firebase --skip-build
-
-# Override .env values via flags
-./scripts/run_maestro_firebase.sh --firebase --skip-build --apk /path/to/app.apk --project my-project-id
-
-# Custom suite
-./scripts/run_maestro_firebase.sh --firebase --skip-build --suite test-suites/regression.yaml
+# Override APK or suite via flags
+./scripts/run_maestro_firebase.sh --local --skip-build --apk ./univest-build/other-app.apk
+./scripts/run_maestro_firebase.sh --local --skip-build --suite test-suites/regression.yaml
 ```
 
 #### Script Options
@@ -102,11 +98,9 @@ The script auto-loads `.env` so you don't need to pass flags for project, APK, o
 | Flag | Description |
 |------|-------------|
 | `--local` | Run on connected device/emulator |
-| `--firebase` | Run on Firebase Test Lab |
-| `--skip-build` | Skip Flutter APK build step |
+| `--skip-build` | Skip Flutter APK build step (use pre-built APK) |
 | `--suite <path>` | Test suite to run (default: `smoke.yaml`) |
 | `--apk <path>` | Path to pre-built APK (overrides `.env`) |
-| `--project <id>` | Firebase project ID (overrides `.env`) |
 | `-h, --help` | Show help |
 
 > **Note:** All flags are optional if the corresponding values are set in `.env`.
@@ -133,68 +127,21 @@ Referenced in flows as `${contact_number}` and `${otp}`. You can override them i
 maestro test -e contact_number=1234567890 -e otp=1111 test-suites/smoke.yaml
 ```
 
-## Firebase Test Lab Setup
-
-### 1. Enable Test Lab
-
-```bash
-gcloud auth login
-gcloud config set project <YOUR_PROJECT_ID>
-gcloud services enable testing.googleapis.com
-```
-
-### 2. Create Service Account (for CI)
-
-```bash
-# Create service account
-gcloud iam service-accounts create maestro-test-lab \
-  --display-name="Maestro Test Lab"
-
-# Grant permissions
-gcloud projects add-iam-policy-binding <PROJECT_ID> \
-  --member="serviceAccount:maestro-test-lab@<PROJECT_ID>.iam.gserviceaccount.com" \
-  --role="roles/cloudtestservice.testAdmin"
-
-gcloud projects add-iam-policy-binding <PROJECT_ID> \
-  --member="serviceAccount:maestro-test-lab@<PROJECT_ID>.iam.gserviceaccount.com" \
-  --role="roles/storage.admin"
-
-# Download key
-gcloud iam service-accounts keys create gcp-key.json \
-  --iam-account=maestro-test-lab@<PROJECT_ID>.iam.gserviceaccount.com
-```
-
-### 3. Manual Test Lab Run
-
-```bash
-# List available devices
-gcloud firebase test android models list
-
-# Run on Test Lab with pre-built APK
-gcloud firebase test android run \
-  --type=game-loop \
-  --app=./univest-build/your-app.apk \
-  --device=model=MediumPhone.arm,version=30,locale=en,orientation=portrait \
-  --timeout=15m
-```
-
 ## CI/CD (GitHub Actions)
 
-The pipeline at `.github/workflows/maestro-firebase.yml` runs on push to `main` and manual dispatch.
+The pipeline at `.github/workflows/maestro-firebase.yml` spins up an Android emulator and runs Maestro tests on every push to `main`, PR, or manual dispatch.
 
-### Required GitHub Secrets
+### How it works
 
-| Secret | Description |
-|--------|-------------|
-| `GCP_SERVICE_ACCOUNT_KEY` | JSON key for the GCP service account |
-| `FIREBASE_PROJECT_ID` | Firebase project ID |
-| `FLUTTER_REPO_TOKEN` | PAT with access to Flutter app repo (if private) |
+1. Checks out the repo (including APK in `univest-build/`)
+2. Installs Maestro and starts an Android emulator (API 30)
+3. Installs the APK via `adb install`
+4. Runs Maestro test suite against the emulator
+5. Uploads test artifacts (screenshots, logs)
 
-### Required GitHub Variables
+### No secrets required
 
-| Variable | Description |
-|----------|-------------|
-| `FLUTTER_REPO` | Flutter app repository (e.g., `org/univest-app`) |
+The CI pipeline uses a pre-built APK from `univest-build/` — no GCP credentials or Firebase setup needed.
 
 ### Manual Trigger
 
@@ -296,9 +243,8 @@ Output: `~/.maestro/tests/` or `--output` directory.
 | App won't launch | Check `appId` matches `applicationId` in `build.gradle`. Run `adb devices` to verify connection |
 | Timeout errors | Increase `timeout` in `waitFor`. Check if the app is actually reaching that screen |
 | iOS testing | Use `bundleId` instead of `appId`. Run on a booted iOS simulator |
-| Firebase auth error | Re-run `gcloud auth login`. Verify service account has `cloudtestservice.testAdmin` role |
-| Invalid model error | Run `gcloud firebase test android models list` to see available device models |
-| APK not found | Check `FLUTTER_PROJECT_DIR` path in `.env`. Ensure the APK file exists |
+| APK not found | Ensure APK exists in `univest-build/` directory |
+| CI emulator slow | AVD snapshots are cached — first run is slower, subsequent runs use cache |
 
 ## License
 
