@@ -10,12 +10,23 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-FLUTTER_PROJECT_DIR="${FLUTTER_PROJECT_DIR:-../univest}"  # path to Flutter project
-APK_PATH="${APK_PATH:-$FLUTTER_PROJECT_DIR/build/app/outputs/flutter-apk/app-uat-debug.apk}"
-ARTIFACTS_DIR="$HOME/.maestro/tests"
-TEST_SUITE="$PROJECT_DIR/test-suites/smoke.yaml"
-FIREBASE_PROJECT="${FIREBASE_PROJECT:-}"
-DEVICE_MODEL="${DEVICE_MODEL:-Pixel2}"
+
+# Load .env file if present
+if [[ -f "$PROJECT_DIR/.env" ]]; then
+    while IFS='=' read -r key value; do
+        [[ -z "$key" || "$key" =~ ^# ]] && continue
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs)
+        export "$key=$value"
+    done < "$PROJECT_DIR/.env"
+fi
+
+FLUTTER_PROJECT_DIR="${FLUTTER_PROJECT_DIR:-../univest}"
+APK_PATH="${APK_PATH:-$FLUTTER_PROJECT_DIR}"
+ARTIFACTS_DIR="${ARTIFACTS_DIR:-$HOME/.maestro/tests}"
+TEST_SUITE="$PROJECT_DIR/test-suites/${TEST_SUITE:-smoke}.yaml"
+FIREBASE_PROJECT="${FIREBASE_PROJECT_ID:-${FIREBASE_PROJECT:-}}"
+DEVICE_MODEL="${DEVICE_MODEL:-MediumPhone.arm}"
 DEVICE_VERSION="${DEVICE_VERSION:-30}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
@@ -109,10 +120,10 @@ run_firebase() {
     log "Uploading APK to Firebase Test Lab..."
     mkdir -p "$ARTIFACTS_DIR/$TIMESTAMP"
 
-    # Run instrumentation test with Maestro sharding
+    # Run robo test on Firebase Test Lab
     gcloud firebase test android run \
         --project="$FIREBASE_PROJECT" \
-        --type=game-loop \
+        --type=robo \
         --app="$APK_PATH" \
         --device="model=$DEVICE_MODEL,version=$DEVICE_VERSION,locale=en,orientation=portrait" \
         --timeout=15m \

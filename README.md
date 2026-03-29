@@ -81,18 +81,20 @@ maestro test -e contact_number=9876543210 -e otp=0000 test-suites/smoke.yaml
 
 ### Automation Script (`run_maestro_firebase.sh`)
 
+The script auto-loads `.env` so you don't need to pass flags for project, APK, or device config.
+
 ```bash
-# Local run (skip APK build)
+# Local run
 ./scripts/run_maestro_firebase.sh --local --skip-build
 
-# Local run with custom suite
-./scripts/run_maestro_firebase.sh --local --skip-build --suite test-suites/regression.yaml
+# Firebase Test Lab (uses .env for project, APK path, device config)
+./scripts/run_maestro_firebase.sh --firebase --skip-build
 
-# Firebase Test Lab (with pre-built APK)
-./scripts/run_maestro_firebase.sh --firebase --skip-build --apk /path/to/app.apk --project your-firebase-project-id
+# Override .env values via flags
+./scripts/run_maestro_firebase.sh --firebase --skip-build --apk /path/to/app.apk --project my-project-id
 
-# Full run: build APK + run on Firebase
-./scripts/run_maestro_firebase.sh --firebase --project your-firebase-project-id
+# Custom suite
+./scripts/run_maestro_firebase.sh --firebase --skip-build --suite test-suites/regression.yaml
 ```
 
 #### Script Options
@@ -103,37 +105,11 @@ maestro test -e contact_number=9876543210 -e otp=0000 test-suites/smoke.yaml
 | `--firebase` | Run on Firebase Test Lab |
 | `--skip-build` | Skip Flutter APK build step |
 | `--suite <path>` | Test suite to run (default: `smoke.yaml`) |
-| `--apk <path>` | Path to pre-built APK |
-| `--project <id>` | Firebase project ID |
+| `--apk <path>` | Path to pre-built APK (overrides `.env`) |
+| `--project <id>` | Firebase project ID (overrides `.env`) |
 | `-h, --help` | Show help |
 
-### Firebase Test Lab
-
-```bash
-# Full run (build + upload + test)
-./scripts/run_maestro_firebase.sh --firebase --project <firebase-project-id>
-
-# Skip build (use existing APK)
-./scripts/run_maestro_firebase.sh --firebase --skip-build --apk path/to/app.apk --project <id>
-
-# Custom suite
-./scripts/run_maestro_firebase.sh --firebase --suite test-suites/regression.yaml --project <id>
-```
-
-### Script Options
-
-```
-Usage: ./scripts/run_maestro_firebase.sh [--local | --firebase] [OPTIONS]
-
-Options:
-  --local              Run tests locally on connected device/emulator
-  --firebase           Run tests on Firebase Test Lab
-  --skip-build         Skip Flutter APK build step
-  --suite <path>       Test suite to run (default: smoke.yaml)
-  --apk <path>         Path to pre-built APK
-  --project <id>       Firebase project ID
-  -h, --help           Show help
-```
+> **Note:** All flags are optional if the corresponding values are set in `.env`.
 
 ## Environment Configuration
 
@@ -177,7 +153,7 @@ gcloud iam service-accounts create maestro-test-lab \
 # Grant permissions
 gcloud projects add-iam-policy-binding <PROJECT_ID> \
   --member="serviceAccount:maestro-test-lab@<PROJECT_ID>.iam.gserviceaccount.com" \
-  --role="roles/firebase.testLab.admin"
+  --role="roles/cloudtestservice.testAdmin"
 
 gcloud projects add-iam-policy-binding <PROJECT_ID> \
   --member="serviceAccount:maestro-test-lab@<PROJECT_ID>.iam.gserviceaccount.com" \
@@ -191,15 +167,14 @@ gcloud iam service-accounts keys create gcp-key.json \
 ### 3. Manual Test Lab Run
 
 ```bash
-# Build APK
-cd <flutter-project>
-flutter build apk --debug --flavor uat -t lib/main_uat.dart
+# List available devices
+gcloud firebase test android models list
 
-# Run on Test Lab
+# Run on Test Lab with pre-built APK
 gcloud firebase test android run \
   --type=game-loop \
-  --app=build/app/outputs/flutter-apk/app-uat-debug.apk \
-  --device=model=Pixel2,version=30,locale=en,orientation=portrait \
+  --app=./univest-build/your-app.apk \
+  --device=model=MediumPhone.arm,version=30,locale=en,orientation=portrait \
   --timeout=15m
 ```
 
@@ -321,8 +296,9 @@ Output: `~/.maestro/tests/` or `--output` directory.
 | App won't launch | Check `appId` matches `applicationId` in `build.gradle`. Run `adb devices` to verify connection |
 | Timeout errors | Increase `timeout` in `waitFor`. Check if the app is actually reaching that screen |
 | iOS testing | Use `bundleId` instead of `appId`. Run on a booted iOS simulator |
-| Firebase auth error | Re-run `gcloud auth login`. Verify service account has `testLab.admin` role |
-| APK not found | Check `FLUTTER_PROJECT_DIR` path. Run `flutter build apk` manually to verify |
+| Firebase auth error | Re-run `gcloud auth login`. Verify service account has `cloudtestservice.testAdmin` role |
+| Invalid model error | Run `gcloud firebase test android models list` to see available device models |
+| APK not found | Check `FLUTTER_PROJECT_DIR` path in `.env`. Ensure the APK file exists |
 
 ## License
 

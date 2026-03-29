@@ -1,5 +1,7 @@
-# Environment (contains credentials)
+# Environment & credentials
 .env
+gcp-key.json
+*.json.bak
 
 # Artifacts & test output
 artifacts/
