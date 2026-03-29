@@ -9,7 +9,7 @@ screenshots/
 
 # Build output
 build/
-*.apk
+# *.apk
 *.ipa
 *.aab
 
